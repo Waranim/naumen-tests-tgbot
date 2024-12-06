@@ -170,9 +170,6 @@ public class TestService {
                 break;
             case ADD_TEST_DESCRIPTION:
                 currentTest.setDescription(message);
-                currentTest.setCountTries(0);
-                currentTest.setCorrectAnswerCountAllUsers(0);
-                currentTest.setCountAnsweredQuestionsAllUsers(0);
                 response = String.format("Тест “%s” создан! Количество вопросов: 0. Для добавление вопросов используйте /add_question %s, где %s - идентификатор теста “%s”.", currentTest.getTitle(), currentTest.getId(), currentTest.getId(), currentTest.getTitle());
                 userService.changeStateById(userId, UserState.DEFAULT);
                 break;
@@ -241,12 +238,6 @@ public class TestService {
     private String testToString(TestEntity test) {
         List<QuestionEntity> questions = test.getQuestions();
         StringBuilder response = new StringBuilder(String.format("Тест “%s”. Всего вопросов: %s\n",  test.getTitle(), questions.size()));
-        String correctAnswerPercent = test.getCountAnsweredQuestionsAllUsers() != 0
-                ? String.valueOf((test.getCorrectAnswerCountAllUsers() * 100) / test.getCountAnsweredQuestionsAllUsers())
-                : "Тест ещё не проходили";
-        response.append(
-                String.format("\nСтатистика по тесту:\nОбщее количество попыток: %d\nСредний процент правильных ответов: %s\n\n",
-                        test.getCountTries(), correctAnswerPercent));
         for (QuestionEntity question : questions) {
             response.append("Вопрос: %s\nВарианты ответов:\n".formatted(question.getQuestion()));
             List<AnswerEntity> answers = question.getAnswers();
@@ -383,16 +374,9 @@ public class TestService {
      * Обработка конца теста
      */
     private SendMessage handleTestFinish(String chatId, Long userId) {
-        TestEntity test = userService.getSession(userId).getCurrentTest();
-
         userService.changeStateById(userId, UserState.DEFAULT);
         Integer correctAnswerCount = userService.getCorrectAnswerCount(userId);
         Integer countAnsweredQuestions = userService.getCountAnsweredQuestions(userId);
-        test.setCountTries(test.getCountTries() + 1);
-        test.setCorrectAnswerCountAllUsers(test.getCorrectAnswerCountAllUsers() + correctAnswerCount);
-        test.setCountAnsweredQuestionsAllUsers(test.getCountAnsweredQuestionsAllUsers() + countAnsweredQuestions);
-        testRepository.save(test);
-
         Integer correctAnswerPercent = countAnsweredQuestions != 0
                 ? (correctAnswerCount * 100) / countAnsweredQuestions
                 : 0;

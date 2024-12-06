@@ -23,6 +23,7 @@ public class TestEntity extends BaseEntity {
     @OneToMany(mappedBy = "test", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<QuestionEntity> question = new ArrayList<>();
 
+
     /**
      * Название теста
      */
@@ -32,21 +33,6 @@ public class TestEntity extends BaseEntity {
      * Описание теста
      */
     private String description;
-
-    /**
-     * Количество попыток прохождения
-     */
-    private Integer countTries;
-
-    /**
-     * Количество правильных ответов в тесте всех пользователей
-     */
-    private Integer correctAnswerCountAllUsers;
-
-    /**
-     * Количество решённых вопросов в тесте всех пользователей
-     */
-    private Integer countAnsweredQuestionsAllUsers;
 
     public TestEntity() {
     }
@@ -62,6 +48,8 @@ public class TestEntity extends BaseEntity {
         this.title = title;
     }
 
+
+
     public void setDescription(String description) {
         this.description = description;
     }
@@ -72,29 +60,5 @@ public class TestEntity extends BaseEntity {
 
     public Long getCreatorId() {
         return creatorId;
-    }
-
-    public Integer getCountTries() {
-        return countTries;
-    }
-
-    public void setCountTries(Integer countTries) {
-        this.countTries = countTries;
-    }
-
-    public Integer getCorrectAnswerCountAllUsers() {
-        return correctAnswerCountAllUsers;
-    }
-
-    public void setCorrectAnswerCountAllUsers(Integer correctAnswerCountAllUsers) {
-        this.correctAnswerCountAllUsers = correctAnswerCountAllUsers;
-    }
-
-    public Integer getCountAnsweredQuestionsAllUsers() {
-        return countAnsweredQuestionsAllUsers;
-    }
-
-    public void setCountAnsweredQuestionsAllUsers(Integer countAnsweredQuestionsAllUsers) {
-        this.countAnsweredQuestionsAllUsers = countAnsweredQuestionsAllUsers;
     }
 }
