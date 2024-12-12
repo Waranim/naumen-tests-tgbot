@@ -288,6 +288,13 @@ public class TestService {
             case "confirmDeleteYes":
                 userService.setCurrentTest(userId, null);
                 userService.setCurrentQuestion(userId, null);
+                for (UserEntity u : currentTest.getRecipients()) {
+                    if (u.getSession().getCurrentTest().equals(currentTest)){
+                        userService.setCurrentTest(u.getId(),null);
+                        userService.setCurrentQuestion(u.getId(), null);
+                    }
+                    u.getReceivedTests().remove(currentTest);
+                }
                 testRepository.delete(currentTest);
                 userService.changeStateById(userId, UserState.DEFAULT);
                 return messageBuilder.createSendMessage(chatId, String.format("Вопрос “%s” успешно удалён.", currentTest.getTitle()),null);

@@ -1,8 +1,6 @@
 package org.example.naumenteststgbot.entity;
 
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Entity;
-import jakarta.persistence.OneToMany;
+import jakarta.persistence.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,6 +51,11 @@ public class TestEntity extends BaseEntity {
      */
     private Integer countAnsweredQuestionsAllUsers;
 
+    /**
+     * Пользователи, которые получили доступ к данному тесту
+     */
+    @ManyToMany(fetch = FetchType.EAGER)
+    private final List<UserEntity> recipients = new ArrayList<>();
     public TestEntity() {
     }
     public TestEntity(Long creatorId) {
@@ -116,5 +119,9 @@ public class TestEntity extends BaseEntity {
      */
     public void setAccessOpen(boolean accessOpen) {
         this.accessOpen = accessOpen;
+    }
+
+    public List<UserEntity> getRecipients() {
+        return recipients;
     }
 }

@@ -30,8 +30,8 @@ public class Utils {
                 ? String.valueOf((test.getCorrectAnswerCountAllUsers() * 100) / test.getCountAnsweredQuestionsAllUsers())
                 : "Тест ещё не проходили";
         response.append(
-                String.format("\nСтатистика по тесту:\nОбщее количество попыток: %d\nСредний процент правильных ответов: %s\n\n",
-                        test.getCountTries(), correctAnswerPercent));
+                String.format("\nСтатистика по тесту:\nОбщее количество попыток: %d\nСредний процент правильных ответов: %s\nКоличество пользователей с доступом к тесту: %d\n\n",
+                        test.getCountTries(), correctAnswerPercent, test.getRecipients().size()));
         for (QuestionEntity question : questions) {
             response.append("Вопрос: %s\nВарианты ответов:\n".formatted(question.getQuestion()));
             List<AnswerEntity> answers = question.getAnswers();

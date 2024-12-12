@@ -4,6 +4,7 @@ import org.example.naumenteststgbot.entity.TestEntity;
 import org.example.naumenteststgbot.entity.UserEntity;
 import org.example.naumenteststgbot.entity.UserSession;
 import org.example.naumenteststgbot.enums.UserState;
+import org.example.naumenteststgbot.repository.TestRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -21,13 +22,15 @@ public class ShareService {
     private final KeyboardService keyboardService;
     private final TestService testService;
     private final Utils utils;
+    private final TestRepository testRepository;
 
-    public ShareService(UserService userService, MessageBuilder messageBuilder, KeyboardService keyboardService, TestService testService, Utils utils) {
+    public ShareService(UserService userService, MessageBuilder messageBuilder, KeyboardService keyboardService, TestService testService, Utils utils, TestRepository testRepository) {
         this.userService = userService;
         this.messageBuilder = messageBuilder;
         this.keyboardService = keyboardService;
         this.testService = testService;
         this.utils = utils;
+        this.testRepository = testRepository;
     }
 
     /**
@@ -67,6 +70,7 @@ public class ShareService {
             return messageBuilder.createErrorMessage(chatId, "У вас нет доступа к тесту");
 
         userService.removeReceivedTest(userId, test);
+        test.getRecipients().remove(userService.getUserById(userId));
         String creatorUsername = userService.getUserById(test.getCreatorId()).getUsername();
         return messageBuilder.createSendMessage(
                 chatId,
@@ -136,8 +140,10 @@ public class ShareService {
         if(receivedTests.contains(test) || recipientUser.getTests().contains(test))
             return messageBuilder.createErrorMessage(chatId, "Пользователь уже имеет доступ к этому тесту");
 
+        test.getRecipients().add(recipientUser);
         userService.addReceivedTest(recipientUser.getId(), test);
         userService.changeStateById(userSession.getUserId(), UserState.DEFAULT);
+        testRepository.save(test);
         return messageBuilder.createSendMessage(chatId, "Пользователь " + text + " получил доступ к тесту", null);
     }
 
