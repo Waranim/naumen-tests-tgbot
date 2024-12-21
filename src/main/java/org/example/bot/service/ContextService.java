@@ -107,6 +107,68 @@ public class ContextService {
     }
 
     /**
+     * Получить количество правильных ответов в тесте
+     * @param userId идентификатор пользователя
+     * @return количество правильных ответов в Optional
+     */
+    public Optional<Integer> getCorrectAnswerCount(Long userId) {
+        return getContext(userId).map(UserContext::getCorrectAnswerCount);
+    }
+
+    /**
+     * Увеличить количество правильно решённых вопросов на 1
+     * @param userId идентификатор пользователя
+     */
+    public void incrementCorrectAnswerCount(Long userId) {
+        getContext(userId).ifPresent(context -> {
+            context.setCorrectAnswerCount(context.getCorrectAnswerCount() + 1);
+            userContextRepository.save(context);
+        });
+    }
+
+    /**
+     * Отчистить счётчик правильно решённых вопросов
+     * @param userId идентификатор пользователя
+     */
+    public void clearCorrectAnswerCount(Long userId) {
+        getContext(userId).ifPresent(context -> {
+            context.setCorrectAnswerCount(0);
+            userContextRepository.save(context);
+        });
+    }
+
+    /**
+     * Получить количество решённых вопросов в тесте
+     * @param userId идентификатор пользователя
+     * @return количество решённых вопросов в Optional
+     */
+    public Optional<Integer> getCountAnsweredQuestions(Long userId) {
+        return getContext(userId).map(UserContext::getCountAnsweredQuestions);
+    }
+
+    /**
+     * Увеличить количество решённых вопросов на 1
+     * @param userId идентификатор пользователя
+     */
+    public void incrementCountAnsweredQuestions(Long userId) {
+        getContext(userId).ifPresent(context -> {
+            context.setCountAnsweredQuestions(context.getCountAnsweredQuestions() + 1);
+            userContextRepository.save(context);
+        });
+    }
+
+    /**
+     * Отчистить счётчик правильно решённых вопросов
+     * @param userId идентификатор пользователя
+     */
+    public void clearCountAnsweredQuestions(Long userId) {
+        getContext(userId).ifPresent(context -> {
+            context.setCountAnsweredQuestions(0);
+            userContextRepository.save(context);
+        });
+    }
+
+    /**
      * Обновление контекста пользователя в базе данных
      * @param context контекст пользователя
      */

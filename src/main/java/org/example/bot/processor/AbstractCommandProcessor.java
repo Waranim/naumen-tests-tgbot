@@ -26,7 +26,7 @@ public abstract class AbstractCommandProcessor implements MessageProcessor {
     /**
      * Извлечь команду из сообщения
      */
-    protected final String extractCommand(String message) {
+    private String extractCommand(String message) {
         int spaceIndex = message.indexOf(' ');
         return spaceIndex == -1 ? message : message.substring(0, spaceIndex);
     }

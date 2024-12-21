@@ -6,6 +6,7 @@ import org.example.bot.service.ContextService;
 import org.example.bot.service.StateService;
 import org.example.bot.service.TestService;
 import org.example.bot.state.UserState;
+import org.example.bot.telegram.BotResponse;
 import org.springframework.stereotype.Component;
 
 
@@ -47,10 +48,10 @@ public class AddCommandProcessor extends AbstractCommandProcessor {
     }
 
     @Override
-    public String process(Long userId, String message) {
+    public BotResponse process(Long userId, String message) {
         TestEntity test = testService.createTest(userId);
         stateService.changeStateById(userId, UserState.ADD_TEST_TITLE);
         contextService.setCurrentTest(userId, test);
-        return "Введите название теста";
+        return new BotResponse("Введите название теста");
     }
 }

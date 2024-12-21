@@ -6,6 +6,7 @@ import org.example.bot.service.QuestionService;
 import org.example.bot.service.ContextService;
 import org.example.bot.service.StateService;
 import org.example.bot.state.UserState;
+import org.example.bot.telegram.BotResponse;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
@@ -34,9 +35,9 @@ public class EditQuestionTextProcessor extends AbstractStateProcessor {
     /**
      * Конструктор для инициализации обработчика редактирования формулировки вопроса
      *
-     * @param stateService    cервис для управления состояниями
-     * @param contextService  cервис для управления контекстом
-     * @param questionService cервис для управления вопросами
+     * @param stateService    сервис для управления состояниями
+     * @param contextService  сервис для управления контекстом
+     * @param questionService сервис для управления вопросами
      */
     public EditQuestionTextProcessor(StateService stateService,
                                      ContextService contextService,
@@ -48,16 +49,17 @@ public class EditQuestionTextProcessor extends AbstractStateProcessor {
     }
 
     @Override
-    public String process(Long userId, String message) {
+    public BotResponse process(Long userId, String message) {
         Optional<QuestionEntity> optionalCurrentQuestion = contextService.getCurrentQuestion(userId);
         if (optionalCurrentQuestion.isEmpty()) {
-            return "Вопрос не найден";
+            return new BotResponse("Вопрос не найден");
         }
+
         QuestionEntity currentQuestion = optionalCurrentQuestion.get();
         currentQuestion.setQuestion(message);
         questionService.update(currentQuestion);
         stateService.changeStateById(userId, UserState.DEFAULT);
 
-        return String.format("Текст вопроса изменен на “%s”", message);
+        return new BotResponse(String.format("Текст вопроса изменен на “%s”", message));
     }
 }

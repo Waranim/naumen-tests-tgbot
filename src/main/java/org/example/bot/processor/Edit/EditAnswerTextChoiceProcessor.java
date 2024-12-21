@@ -1,10 +1,11 @@
 package org.example.bot.processor.Edit;
 
 import org.example.bot.entity.QuestionEntity;
-import org.example.bot.processor.AbstractStateProcessor;
+import org.example.bot.processor.AbstractCallbackProcessor;
 import org.example.bot.service.ContextService;
 import org.example.bot.service.StateService;
 import org.example.bot.state.UserState;
+import org.example.bot.telegram.BotResponse;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
@@ -13,7 +14,7 @@ import java.util.Optional;
  * Обработчик состояния редактирования ответа
  */
 @Component
-public class EditAnswerTextChoiceProcessor extends AbstractStateProcessor {
+public class EditAnswerTextChoiceProcessor extends AbstractCallbackProcessor {
 
     /**
      * Сервис для управления состояниями
@@ -28,30 +29,32 @@ public class EditAnswerTextChoiceProcessor extends AbstractStateProcessor {
     /**
      * Конструктор для инициализации обработчика редактирования формулировки ответа
      *
-     * @param stateService   cервис для управления состояниями
-     * @param contextService cервис для управления контекстом
+     * @param stateService   сервис для управления состояниями
+     * @param contextService сервис для управления контекстом
      */
     public EditAnswerTextChoiceProcessor(StateService stateService,
                                          ContextService contextService) {
-        super(stateService, UserState.EDIT_ANSWER_TEXT_CHOICE);
+        super("EDIT_ANSWER_TEXT_CHOICE");
         this.stateService = stateService;
         this.contextService = contextService;
     }
 
     @Override
-    public String process(Long userId, String message) {
+    public BotResponse process(Long userId, String message) {
+        String[] parts = message.split(" ");
         Optional<QuestionEntity> optionalCurrentQuestion = contextService.getCurrentQuestion(userId);
-        if (optionalCurrentQuestion.isEmpty()) {
-            return "Вопрос не найден";
+        if (optionalCurrentQuestion.isEmpty() || parts.length != 2) {
+            return new BotResponse("Вопрос не найден");
         }
+
         QuestionEntity currentQuestion = optionalCurrentQuestion.get();
-        int answerIndex = Integer.parseInt(message) - 1;
+        int answerIndex = Integer.parseInt(parts[1]);
         if (answerIndex < 0 || answerIndex >= currentQuestion.getAnswers().size()) {
-            return "Некорректный номер ответа. Попробуйте еще раз.";
+            return new BotResponse("Некорректный номер ответа. Попробуйте еще раз.");
         }
+
         contextService.setEditingAnswerIndex(userId, answerIndex);
         stateService.changeStateById(userId, UserState.EDIT_ANSWER_TEXT);
-        return "Введите новую формулировку ответа";
+        return new BotResponse("Введите новую формулировку ответа");
     }
-
 }

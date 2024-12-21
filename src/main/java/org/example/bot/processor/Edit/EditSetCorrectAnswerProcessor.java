@@ -1,12 +1,13 @@
 package org.example.bot.processor.Edit;
 
 import org.example.bot.entity.QuestionEntity;
-import org.example.bot.processor.AbstractStateProcessor;
+import org.example.bot.processor.AbstractCallbackProcessor;
 import org.example.bot.service.QuestionService;
 import org.example.bot.service.ContextService;
 import org.example.bot.service.StateService;
 import org.example.bot.state.UserState;
 
+import org.example.bot.telegram.BotResponse;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
@@ -15,7 +16,7 @@ import java.util.Optional;
  * Обработчик состояния редактирования правильного ответа
  */
 @Component
-public class EditSetCorrectAnswerProcessor extends AbstractStateProcessor {
+public class EditSetCorrectAnswerProcessor extends AbstractCallbackProcessor {
 
     /**
      * Сервис для управления состояниями
@@ -42,29 +43,30 @@ public class EditSetCorrectAnswerProcessor extends AbstractStateProcessor {
     public EditSetCorrectAnswerProcessor(StateService stateService,
                                          ContextService contextService,
                                          QuestionService questionService) {
-        super(stateService, UserState.SET_CORRECT_ANSWER);
+        super("SET_CORRECT_ANSWER");
         this.stateService = stateService;
         this.contextService = contextService;
         this.questionService = questionService;
     }
 
     @Override
-    public String process(Long userId, String message) {
+    public BotResponse process(Long userId, String message) {
+        String[] parts = message.split(" ");
         Optional<QuestionEntity> optionalCurrentQuestion = contextService.getCurrentQuestion(userId);
-        if (optionalCurrentQuestion.isEmpty()) {
-            return "Вопрос не найден";
+        if (optionalCurrentQuestion.isEmpty() || parts.length != 2) {
+            return new BotResponse("Вопрос не найден");
         }
         QuestionEntity currentQuestion = optionalCurrentQuestion.get();
         try {
-            int optionIndex = Integer.parseInt(message);
+            int optionIndex = Integer.parseInt(parts[1]) + 1;
             questionService.setCorrectAnswer(currentQuestion, optionIndex);
             stateService.changeStateById(userId, UserState.DEFAULT);
-            return String.format("Вариант ответа %s назначен правильным.", optionIndex);
+            return new BotResponse(String.format("Вариант ответа %s назначен правильным.", optionIndex));
         } catch (NumberFormatException e) {
-            return "Некорректный формат ввода. Пожалуйста, введите число.";
+            return new BotResponse("Некорректный формат ввода. Пожалуйста, введите число.");
         } catch (IllegalArgumentException e) {
-            return String.format("Некорректный номер варианта ответа. Введите число от 1 до %d",
-                    currentQuestion.getAnswers().size());
+            return new BotResponse(String.format("Некорректный номер варианта ответа. Введите число от 1 до %d",
+                    currentQuestion.getAnswers().size()));
         }
     }
 }

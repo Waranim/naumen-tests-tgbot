@@ -8,6 +8,7 @@ import org.example.bot.service.ContextService;
 import org.example.bot.service.StateService;
 import org.example.bot.service.TestService;
 import org.example.bot.state.UserState;
+import org.example.bot.telegram.BotResponse;
 import org.example.bot.util.TestUtils;
 import org.example.bot.util.NumberUtils;
 import org.springframework.stereotype.Component;
@@ -76,30 +77,33 @@ public class AddQuestionCommandProcessor extends AbstractCommandProcessor {
     }
 
     @Override
-    public String process(Long userId, String message) {
+    public BotResponse process(Long userId, String message) {
         String[] parts = message.split(" ");
         Optional<List<TestEntity>> tests = testService.getTestsByUserId(userId);
         if (parts.length == 1) {
             if (tests.isEmpty()) {
-                return "У вас нет доступных тестов для добавления вопросов.";
+                return new BotResponse("У вас нет доступных тестов для добавления вопросов.");
             }
             stateService.changeStateById(userId, UserState.ADD_QUESTION);
-            return "Выберите тест:\n" + testUtils.testsToString(tests.get());
+            return new BotResponse("Выберите тест:\n" + testUtils.testsToString(tests.get()));
         }
+
         String testIdStr = parts[1];
         if (!numberUtils.isNumber(testIdStr)) {
-            return "Ошибка ввода. Укажите корректный id теста.";
+            return new BotResponse("Ошибка ввода. Укажите корректный id теста.");
         }
+
         long testId = Long.parseLong(testIdStr);
         Optional<TestEntity> testOptional = testService.getTest(testId);
         if (tests.isEmpty() || testOptional.isEmpty() || !tests.get().contains(testOptional.get())) {
-            return "Тест не найден!";
+            return new BotResponse("Тест не найден!");
         }
 
         TestEntity test = testOptional.get();
         QuestionEntity question = questionService.createQuestion(test);
         stateService.changeStateById(userId, UserState.ADD_QUESTION_TEXT);
         contextService.setCurrentQuestion(userId, question);
-        return String.format("Введите название вопроса для теста “%s”", test.getTitle());
+
+        return new BotResponse(String.format("Введите название вопроса для теста “%s”", test.getTitle()));
     }
 }

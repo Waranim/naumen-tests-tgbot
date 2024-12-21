@@ -6,6 +6,7 @@ import org.example.bot.service.ContextService;
 import org.example.bot.service.StateService;
 import org.example.bot.service.TestService;
 import org.example.bot.state.UserState;
+import org.example.bot.telegram.BotResponse;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
@@ -48,15 +49,17 @@ public class EditTestDescriptionProcessor extends AbstractStateProcessor {
 
 
     @Override
-    public String process(Long userId, String message) {
+    public BotResponse process(Long userId, String message) {
         Optional<TestEntity> optionalCurrentTest = contextService.getCurrentTest(userId);
         if (optionalCurrentTest.isEmpty()) {
-            return "Тест не найден";
+            return new BotResponse("Тест не найден");
         }
+
         TestEntity currentTest = optionalCurrentTest.get();
         currentTest.setDescription(message);
         testService.update(currentTest);
         stateService.changeStateById(userId, UserState.DEFAULT);
-        return String.format("Описание изменено на “%s”", message);
+
+        return new BotResponse(String.format("Описание изменено на “%s”", message));
     }
 }

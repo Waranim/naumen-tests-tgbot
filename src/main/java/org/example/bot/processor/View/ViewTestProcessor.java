@@ -3,6 +3,7 @@ package org.example.bot.processor.View;
 import org.example.bot.processor.AbstractStateProcessor;
 import org.example.bot.service.StateService;
 import org.example.bot.state.UserState;
+import org.example.bot.telegram.BotResponse;
 import org.springframework.stereotype.Component;
 
 /**
@@ -28,7 +29,7 @@ public class ViewTestProcessor extends AbstractStateProcessor {
     }
 
     @Override
-    public String process(Long userId, String message) {
+    public BotResponse process(Long userId, String message) {
         return viewCommandProcessor.process(userId, "/view " + message);
     }
 }

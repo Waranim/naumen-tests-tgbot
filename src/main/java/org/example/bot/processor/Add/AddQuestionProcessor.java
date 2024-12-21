@@ -8,6 +8,7 @@ import org.example.bot.service.ContextService;
 import org.example.bot.service.StateService;
 import org.example.bot.service.TestService;
 import org.example.bot.state.UserState;
+import org.example.bot.telegram.BotResponse;
 import org.example.bot.util.NumberUtils;
 import org.springframework.stereotype.Component;
 
@@ -62,22 +63,22 @@ public class AddQuestionProcessor extends AbstractStateProcessor {
     }
 
     @Override
-    public String process(Long userId, String message) {
+    public BotResponse process(Long userId, String message) {
         if (!numberUtils.isNumber(message)) {
-            return "Некорректный id теста. Пожалуйста, введите число.";
+            return new BotResponse("Некорректный id теста. Пожалуйста, введите число.");
         }
 
         long testId = Long.parseLong(message);
         Optional<TestEntity> testOptional = testService.getTest(testId);
         Optional<List<TestEntity>> testsOptional = testService.getTestsByUserId(userId);
         if (testOptional.isEmpty() || testsOptional.isEmpty() || !testsOptional.get().contains(testOptional.get())) {
-            return "Тест не найден!";
+            return new BotResponse("Тест не найден!");
         }
 
         TestEntity selectedTest = testOptional.get();
         QuestionEntity nquestion = questionService.createQuestion(selectedTest);
         contextService.setCurrentQuestion(userId, nquestion);
         stateService.changeStateById(userId, UserState.ADD_QUESTION_TEXT);
-        return String.format("Введите название вопроса для теста “%s”", selectedTest.getTitle());
+        return new BotResponse(String.format("Введите название вопроса для теста “%s”", selectedTest.getTitle()));
     }
 }

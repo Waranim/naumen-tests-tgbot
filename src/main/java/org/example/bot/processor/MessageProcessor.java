@@ -1,6 +1,8 @@
 package org.example.bot.processor;
 
 
+import org.example.bot.telegram.BotResponse;
+
 /**
  * Обработчик сообщений
  */
@@ -17,5 +19,5 @@ public interface MessageProcessor {
      * @param message сообщение
      * @return Ответ на сообщение
      */
-    String process(Long userId, String message);
+    BotResponse process(Long userId, String message);
 }

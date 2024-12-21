@@ -1,32 +1,32 @@
 package org.example.bot.service;
 
+import org.example.bot.dto.InlineButtonDTO;
 import org.example.bot.entity.*;
 import org.example.bot.handler.MessageHandler;
 import org.example.bot.processor.Add.*;
 import org.example.bot.processor.Del.*;
 import org.example.bot.processor.Edit.*;
 import org.example.bot.processor.MessageProcessor;
-import org.example.bot.processor.StopCommandProcessor;
+import org.example.bot.processor.Add.StopCommandProcessor;
 import org.example.bot.processor.View.ViewQuestionCommandProcessor;
 import org.example.bot.repository.QuestionRepository;
 import org.example.bot.repository.TestRepository;
 import org.example.bot.repository.UserRepository;
 import org.example.bot.repository.UserContextRepository;
-import org.example.bot.util.AnswerUtils;
+import org.example.bot.telegram.BotResponse;
 import org.example.bot.util.TestUtils;
 import org.example.bot.util.NumberUtils;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.*;
 import static org.mockito.Mockito.when;
 
@@ -63,11 +63,6 @@ public class QuestionProcessorTest {
     private final NumberUtils numberUtils = new NumberUtils();
 
     /**
-     * Утилита с вспомогательными методами для ответов
-     */
-    private final AnswerUtils answerUtils = new AnswerUtils();
-
-    /**
      * Утилита с вспомогательными методами для тестов
      */
     private final TestUtils testUtils = new TestUtils();
@@ -81,7 +76,6 @@ public class QuestionProcessorTest {
      * Обработчик сообщений
      */
     private MessageHandler messageHandler;
-
     /**
      * Инициализация всех необходимых объектов перед выполнением тестов
      */
@@ -92,48 +86,48 @@ public class QuestionProcessorTest {
         userContextRepository = mock(UserContextRepository.class);
         questionRepository = mock(QuestionRepository.class);
 
+
         UserService userService = new UserService(userRepository);
-        ContextService sessionService = new ContextService(userContextRepository, userService);
-        StateService stateService = new StateService(sessionService);
+        ContextService contextService = new ContextService(userContextRepository, userService);
+        StateService stateService = new StateService(contextService);
         TestService testService = new TestService(testRepository, userService);
         QuestionService questionService = new QuestionService(questionRepository, testService);
 
+
         AddQuestionCommandProcessor addQuestionCommandProcessor = new AddQuestionCommandProcessor(testService,
                 questionService, stateService,
-                sessionService, numberUtils, testUtils);
+                contextService, numberUtils, testUtils);
         AddQuestionProcessor addQuestionProcessor = new AddQuestionProcessor(stateService,
-                sessionService, questionService,
+                contextService, questionService,
                 numberUtils, testService);
         AddQuestionTextProcessor addQuestionTextProcessor = new AddQuestionTextProcessor(stateService,
-                sessionService, questionService);
+                contextService, questionService);
         StopCommandProcessor stopCommandProcessor = new StopCommandProcessor(stateService,
-                sessionService, answerUtils);
+                contextService);
         AddAnswerQuestionProcessor addAnswerQuestionProcessor = new AddAnswerQuestionProcessor(stateService,
-                sessionService, questionService,
+                contextService, questionService,
                 stopCommandProcessor);
-
-        DelQuestionCommandProcessor delQuestionCommandProcessor = new DelQuestionCommandProcessor(stateService,
-                sessionService,
-                questionService, numberUtils);
         DelQuestionProcessor delQuestionProcessor = new DelQuestionProcessor(stateService,
-                sessionService, questionService);
+                contextService, questionService);
+        DelQuestionCommandProcessor delQuestionCommandProcessor = new DelQuestionCommandProcessor(stateService,
+                delQuestionProcessor);
         ConfirmDelQuestion confirmDelQuestion = new ConfirmDelQuestion(stateService,
-                sessionService, questionService);
+                contextService, questionService);
 
         EditQuestionCommandProcessor editQuestionCommandProcessor = new EditQuestionCommandProcessor(stateService,
-                sessionService,
+                contextService,
                 questionService, numberUtils);
         EditQuestionProcessor editQuestionProcessor = new EditQuestionProcessor(stateService);
         EditQuestionTextProcessor editQuestionTextProcessor = new EditQuestionTextProcessor(stateService,
-                sessionService, questionService);
+                contextService, questionService);
         EditAnswerOptionChoiceProcessor editAnswerOptionChoiceProcessor = new EditAnswerOptionChoiceProcessor(stateService,
-                sessionService, answerUtils);
+                contextService);
         EditAnswerTextChoiceProcessor editAnswerTextChoiceProcessor = new EditAnswerTextChoiceProcessor(stateService,
-                sessionService);
+                contextService);
         EditAnswerTextProcessor editAnswerTextProcessor = new EditAnswerTextProcessor(stateService,
-                sessionService, questionService);
+                contextService, questionService);
         EditSetCorrectAnswerProcessor editSetCorrectAnswerProcessor = new EditSetCorrectAnswerProcessor(stateService,
-                sessionService, questionService);
+                contextService, questionService);
 
         ViewQuestionCommandProcessor viewQuestionCommandProcessor = new ViewQuestionCommandProcessor(testService, numberUtils);
 
@@ -156,6 +150,7 @@ public class QuestionProcessorTest {
                 viewQuestionCommandProcessor
         );
         messageHandler = new MessageHandler(processors);
+
     }
 
     /**
@@ -178,6 +173,14 @@ public class QuestionProcessorTest {
         when(userContextRepository.findById(userId)).thenReturn(Optional.of(session));
         when(testRepository.findById(1L)).thenReturn(Optional.of(test1));
         when(questionRepository.findById(1L)).thenReturn(Optional.of(question1));
+
+    }
+
+    /**
+     * Очистка моков после каждого теста.
+     */
+    @AfterEach
+    void clearMocks() {
         clearInvocations(testRepository, userRepository, userContextRepository, questionRepository);
     }
 
@@ -243,52 +246,65 @@ public class QuestionProcessorTest {
         when(questionRepository.save(any(QuestionEntity.class))).thenAnswer(i -> i.getArgument(0));
         when(testRepository.findById(1L)).thenReturn(Optional.of(test));
 
-        String response1 = messageHandler.handle("/add_question", userId);
-        assertEquals("Выберите тест:\n1)  id: 1 Математический тест\n", response1);
+        BotResponse response1 = messageHandler.handle("/add_question", userId);
+        assertEquals("Выберите тест:\n1)  id: 1 Математический тест\n", response1.getMessage());
 
-        String response2 = messageHandler.handle("1", userId);
-        assertEquals("Введите название вопроса для теста “Математический тест”",
-                response2);
+        BotResponse response2 = messageHandler.handle("1", userId);
+        assertEquals("Введите название вопроса для теста “Математический тест”", response2.getMessage());
 
-        String response3 = messageHandler.handle("Сколько будет 2 + 2?", userId);
+        BotResponse response3 = messageHandler.handle("Сколько будет 2 + 2?", userId);
         assertEquals("Введите вариант ответа. " +
                         "Если вы хотите закончить добавлять варианты, " +
                         "введите команду /stop.",
-                response3);
+                response3.getMessage());
 
-        String response4 = messageHandler.handle("1", userId);
+        BotResponse response4 = messageHandler.handle("1", userId);
         assertEquals("Введите вариант ответа. " +
                         "Если вы хотите закончить добавлять варианты, " +
                         "введите команду “/stop”.",
-                response4);
+                response4.getMessage());
 
-        String response5 = messageHandler.handle("/stop", userId);
+        BotResponse response5 = messageHandler.handle("/stop", userId);
         assertEquals("Вы не создали необходимый минимум ответов (минимум: 2). " +
                         "Введите варианты ответа.",
-                response5);
+                response5.getMessage());
 
-        String response6 = messageHandler.handle("4", userId);
+        BotResponse response6 = messageHandler.handle("4", userId);
         assertEquals("Введите вариант ответа. " +
                         "Если вы хотите закончить добавлять варианты, " +
                         "введите команду “/stop”.",
-                response6);
+                response6.getMessage());
 
-        String response7 = messageHandler.handle("/stop", userId);
-        assertEquals("Укажите правильный вариант ответа:\n1: 1\n2: 4\n",
-                response7);
 
-        String response8 = messageHandler.handle("3", userId);
+        BotResponse response7 = messageHandler.handle("/stop", userId);
+
+
+        assertEquals("Укажите правильный вариант ответа:\n1: 1\n2: 4\n", response7.getMessage());
+
+        assertNotNull(response7.getButtons());
+        assertEquals(2, response7.getButtons().size());
+
+        InlineButtonDTO button = response7.getButtons().getFirst().getFirst();
+        assertEquals("1", button.text());
+        assertEquals("SET_CORRECT_ANSWER 0", button.callbackData());
+
+        InlineButtonDTO button6 = response7.getButtons().get(1).getFirst();
+        assertEquals("4", button6.text());
+        assertEquals("SET_CORRECT_ANSWER 1", button6.callbackData());
+
+        BotResponse response8 = messageHandler.handle("SET_CORRECT_ANSWER 3", userId);
         assertEquals("Некорректный номер варианта ответа. " +
                         "Введите число от 1 до 2",
-                response8);
+                response8.getMessage());
 
-        String response9 = messageHandler.handle("2", userId);
+        BotResponse response9 = messageHandler.handle("SET_CORRECT_ANSWER 1", userId);
         assertEquals("Вариант ответа 2 назначен правильным.",
-                response9);
+                response9.getMessage());
 
         verify(questionRepository, times(5))
                 .save(argThat(savedQuestion ->
                         savedQuestion.getQuestion().equals("Сколько будет 2 + 2?")
+                                && savedQuestion.getAnswers().size() == 2
                 ));
     }
 
@@ -308,49 +324,62 @@ public class QuestionProcessorTest {
         when(questionRepository.save(any(QuestionEntity.class))).thenAnswer(i -> i.getArgument(0));
         when(testRepository.findById(1L)).thenReturn(Optional.of(test));
 
-        String response1 = messageHandler.handle("/add_question 1", userId);
-        assertEquals("Введите название вопроса для теста “Математический тест”",
-                response1);
+        BotResponse response1 = messageHandler.handle("/add_question 1", userId);
+        assertEquals("Введите название вопроса для теста “Математический тест”", response1.getMessage());
 
-        String response2 = messageHandler.handle("Сколько будет 2 + 2?", userId);
+        BotResponse response2 = messageHandler.handle("Сколько будет 2 + 2?", userId);
         assertEquals("Введите вариант ответа. " +
                         "Если вы хотите закончить добавлять варианты, " +
                         "введите команду /stop.",
-                response2);
+                response2.getMessage());
 
-        String response3 = messageHandler.handle("1", userId);
+        BotResponse response3 = messageHandler.handle("1", userId);
         assertEquals("Введите вариант ответа. " +
                         "Если вы хотите закончить добавлять варианты, " +
                         "введите команду “/stop”.",
-                response3);
+                response3.getMessage());
 
-        String response4 = messageHandler.handle("/stop", userId);
+        BotResponse response4 = messageHandler.handle("/stop", userId);
         assertEquals("Вы не создали необходимый минимум ответов (минимум: 2). " +
                         "Введите варианты ответа.",
-                response4);
+                response4.getMessage());
 
-        String response5 = messageHandler.handle("4", userId);
+        BotResponse response5 = messageHandler.handle("4", userId);
         assertEquals("Введите вариант ответа. " +
                         "Если вы хотите закончить добавлять варианты, " +
                         "введите команду “/stop”.",
-                response5);
+                response5.getMessage());
 
-        String response6 = messageHandler.handle("/stop", userId);
-        assertEquals("Укажите правильный вариант ответа:\n1: 1\n2: 4\n",
-                response6);
 
-        String response7 = messageHandler.handle("4", userId);
+        BotResponse response6 = messageHandler.handle("/stop", userId);
+
+
+        assertEquals("Укажите правильный вариант ответа:\n1: 1\n2: 4\n", response6.getMessage());
+
+        assertNotNull(response6.getButtons());
+        assertEquals(2, response6.getButtons().size());
+
+        InlineButtonDTO button = response6.getButtons().getFirst().getFirst();
+        assertEquals("1", button.text());
+        assertEquals("SET_CORRECT_ANSWER 0", button.callbackData());
+
+        InlineButtonDTO button6 = response6.getButtons().get(1).getFirst();
+        assertEquals("4", button6.text());
+        assertEquals("SET_CORRECT_ANSWER 1", button6.callbackData());
+
+        BotResponse response8 = messageHandler.handle("SET_CORRECT_ANSWER 3", userId);
         assertEquals("Некорректный номер варианта ответа. " +
                         "Введите число от 1 до 2",
-                response7);
+                response8.getMessage());
 
-        String response8 = messageHandler.handle("2", userId);
+        BotResponse response9 = messageHandler.handle("SET_CORRECT_ANSWER 1", userId);
         assertEquals("Вариант ответа 2 назначен правильным.",
-                response8);
+                response9.getMessage());
 
         verify(questionRepository, times(5))
                 .save(argThat(savedQuestion ->
                         savedQuestion.getQuestion().equals("Сколько будет 2 + 2?")
+                                && savedQuestion.getAnswers().size() == 2
                 ));
     }
 
@@ -359,8 +388,8 @@ public class QuestionProcessorTest {
      */
     @Test
     void testAddQuestionNotFound() {
-        String response = messageHandler.handle("/add_question 1234", userId);
-        assertEquals("Тест не найден!", response);
+        BotResponse response = messageHandler.handle("/add_question 1234", userId);
+        assertEquals("Тест не найден!", response.getMessage());
     }
 
     /**
@@ -368,8 +397,8 @@ public class QuestionProcessorTest {
      */
     @Test
     void testAddQuestionWithInvalidId() {
-        String response = messageHandler.handle("/add_question f", userId);
-        assertEquals("Ошибка ввода. Укажите корректный id теста.", response);
+        BotResponse response = messageHandler.handle("/add_question f", userId);
+        assertEquals("Ошибка ввода. Укажите корректный id теста.", response.getMessage());
     }
 
     /**
@@ -377,9 +406,9 @@ public class QuestionProcessorTest {
      */
     @Test
     void testViewQuestion() {
-        String response = messageHandler.handle("/view_question 1", userId);
+        BotResponse response = messageHandler.handle("/view_question 1", userId);
         assertEquals("Вопросы теста \"Математический тест\":\n" +
-                "1) id:1  \"Сколько будет 2 + 2?\"\n", response);
+                "1) id:1  \"Сколько будет 2 + 2?\"\n", response.getMessage());
     }
 
     /**
@@ -387,8 +416,8 @@ public class QuestionProcessorTest {
      */
     @Test
     void testViewQuestionNotFound() {
-        String response = messageHandler.handle("/view_question 1234", userId);
-        assertEquals("Тест не найден!", response);
+        BotResponse response = messageHandler.handle("/view_question 1234", userId);
+        assertEquals("Тест не найден!", response.getMessage());
     }
 
     /**
@@ -396,8 +425,8 @@ public class QuestionProcessorTest {
      */
     @Test
     void testViewQuestionWithoutId() {
-        String response = messageHandler.handle("/view_question", userId);
-        assertEquals("Используйте команду вместе с идентификатором вопроса!", response);
+        BotResponse response = messageHandler.handle("/view_question", userId);
+        assertEquals("Используйте команду вместе с идентификатором вопроса!", response.getMessage());
     }
 
     /**
@@ -405,8 +434,8 @@ public class QuestionProcessorTest {
      */
     @Test
     void testViewQuestionWithInvalidId() {
-        String response = messageHandler.handle("/view_question f", userId);
-        assertEquals("Ошибка ввода. Укажите корректный id теста.", response);
+        BotResponse response = messageHandler.handle("/view_question f", userId);
+        assertEquals("Ошибка ввода. Укажите корректный id теста.", response.getMessage());
     }
 
     /**
@@ -414,17 +443,19 @@ public class QuestionProcessorTest {
      */
     @Test
     void testEditQuestionTitle() {
-        String response1 = messageHandler.handle("/edit_question 1", userId);
-        assertEquals("Вы выбрали вопрос “Сколько будет 2 + 2?”. " +
-                "Что вы хотите изменить в вопросе?\n" +
-                "1: Формулировку вопроса\n" +
-                "2: Варианты ответа\n", response1);
+        BotResponse response1 = messageHandler.handle("/edit_question 1", userId);
+        assertEquals("Вы выбрали вопрос “Сколько будет 2 + 2?”. Что вы хотите изменить в вопросе?",
+                response1.getMessage());
+        assertNotNull(response1.getButtons());
+        assertEquals(2, response1.getButtons().size());
 
-        String response2 = messageHandler.handle("1", userId);
-        assertEquals("Введите новый текст вопроса", response2);
+        BotResponse response2 = messageHandler.handle("EDIT_QUESTION 1 1", userId);
+        assertEquals("Введите новый текст вопроса",
+                response2.getMessage());
 
-        String response3 = messageHandler.handle("Сколько будет 4-2?", userId);
-        assertEquals("Текст вопроса изменен на “Сколько будет 4-2?”", response3);
+        BotResponse response3 = messageHandler.handle("Сколько будет 4-2?", userId);
+        assertEquals("Текст вопроса изменен на “Сколько будет 4-2?”",
+                response3.getMessage());
 
         verify(questionRepository, times(1))
                 .save(argThat(savedQuestion ->
@@ -438,29 +469,17 @@ public class QuestionProcessorTest {
      */
     @Test
     void testEditAnswerText() {
-        String response1 = messageHandler.handle("/edit_question 1", userId);
-        assertEquals("Вы выбрали вопрос “Сколько будет 2 + 2?”. " +
-                "Что вы хотите изменить в вопросе?\n" +
-                "1: Формулировку вопроса\n" +
-                "2: Варианты ответа\n", response1);
+        BotResponse response1 = messageHandler.handle("/edit_question 1", userId);
+        assertEquals("Вы выбрали вопрос “Сколько будет 2 + 2?”. Что вы хотите изменить в вопросе?", response1.getMessage());
 
-        String response2 = messageHandler.handle("2", userId);
-        assertEquals("Что вы хотите сделать с вариантом ответа?\n" +
-                "1: Изменить формулировку ответа\n" +
-                "2: Изменить правильность варианта ответа", response2);
+        BotResponse response2 = messageHandler.handle("EDIT_QUESTION 1 2", userId);
+        assertEquals("Что вы хотите сделать с вариантом ответа?\n", response2.getMessage());
 
-        String response3 = messageHandler.handle("1", userId);
-        assertEquals("Сейчас варианты ответа выглядят так\n" +
-                "1: 1\n" +
-                "2: 4 (верный)\n" +
-                "\n" +
-                "Какой вариант ответа вы хотите изменить?", response3);
+        BotResponse response3 = messageHandler.handle("EDIT_ANSWER_TEXT_CHOICE 0", userId);
+        assertEquals("Введите новую формулировку ответа", response3.getMessage());
 
-        String response4 = messageHandler.handle("1", userId);
-        assertEquals("Введите новую формулировку ответа", response4);
-
-        String response5 = messageHandler.handle("2", userId);
-        assertEquals("Формулировка изменена на “2”", response5);
+        BotResponse response4 = messageHandler.handle("2", userId);
+        assertEquals("Формулировка изменена на “2”", response4.getMessage());
 
         verify(questionRepository, times(1))
                 .save(argThat(savedQuestion ->
@@ -476,32 +495,23 @@ public class QuestionProcessorTest {
      */
     @Test
     void testEditCorrectAnswer() {
-        String response1 = messageHandler.handle("/edit_question 1", userId);
-        assertEquals("Вы выбрали вопрос “Сколько будет 2 + 2?”. " +
-                "Что вы хотите изменить в вопросе?\n" +
-                "1: Формулировку вопроса\n" +
-                "2: Варианты ответа\n", response1);
+        BotResponse response1 = messageHandler.handle("/edit_question 1", userId);
+        assertEquals("Вы выбрали вопрос “Сколько будет 2 + 2?”. Что вы хотите изменить в вопросе?",
+                response1.getMessage());
 
-        String response2 = messageHandler.handle("2", userId);
-        assertEquals("Что вы хотите сделать с вариантом ответа?\n" +
-                "1: Изменить формулировку ответа\n" +
-                "2: Изменить правильность варианта ответа", response2);
+        BotResponse response2 = messageHandler.handle("EDIT_QUESTION 1 2", userId);
+        assertEquals("Что вы хотите сделать с вариантом ответа?\n",
+                response2.getMessage());
 
-        String response3 = messageHandler.handle("2", userId);
-        assertEquals("Сейчас варианты ответа выглядят так:\n" +
-                "1: 1\n" +
-                "2: 4 (верный)\n" +
-                "\n" +
-                "Какой вариант ответа вы хотите сделать правильным?", response3);
-
-        String response4 = messageHandler.handle("1", userId);
-        assertEquals("Вариант ответа 1 назначен правильным.", response4);
+        BotResponse response3 = messageHandler.handle("SET_CORRECT_ANSWER 0", userId);
+        assertEquals("Вариант ответа 1 назначен правильным.",
+                response3.getMessage());
 
         verify(questionRepository, times(1))
                 .save(argThat(savedQuestion ->
                         savedQuestion.getId().equals(1L) &&
                                 savedQuestion.getAnswers().stream()
-                                        .filter(a -> a.isCorrect())
+                                        .filter(AnswerEntity::isCorrect)
                                         .findFirst().get()
                                         .getAnswerText().equals("1")
                 ));
@@ -512,8 +522,8 @@ public class QuestionProcessorTest {
      */
     @Test
     void testEditQuestionNotFound() {
-        String response = messageHandler.handle("/edit_question 1234", userId);
-        assertEquals("Вопрос не найден!", response);
+        BotResponse response = messageHandler.handle("/edit_question 1234", userId);
+        assertEquals("Вопрос не найден!", response.getMessage());
     }
 
     /**
@@ -521,8 +531,8 @@ public class QuestionProcessorTest {
      */
     @Test
     void testEditQuestionWithoutId() {
-        String response = messageHandler.handle("/edit_question", userId);
-        assertEquals("Используйте команду вместе с идентификатором вопроса!", response);
+        BotResponse response = messageHandler.handle("/edit_question", userId);
+        assertEquals("Используйте команду вместе с идентификатором вопроса!", response.getMessage());
     }
 
     /**
@@ -530,8 +540,8 @@ public class QuestionProcessorTest {
      */
     @Test
     void testEditQuestionWithInvalidId() {
-        String response = messageHandler.handle("/edit_question f", userId);
-        assertEquals("Ошибка ввода. Укажите корректный id теста.", response);
+        BotResponse response = messageHandler.handle("/edit_question f", userId);
+        assertEquals("Ошибка ввода. Укажите корректный id теста.", response.getMessage());
     }
 
     /**
@@ -539,13 +549,32 @@ public class QuestionProcessorTest {
      */
     @Test
     void testConfirmDeleteQuestionWithQuestionId() {
-        String response1 = messageHandler.handle("/del_question 1", userId);
-        assertEquals("Вопрос “Сколько будет 2 + 2?” " +
-                "будет удалён, вы уверены? (Да/Нет)", response1);
+        UserContext session = new UserContext(userId);
+        TestEntity test = createTest(userId, 1L, "Математический тест");
+        UserEntity user = new UserEntity(List.of(test));
+        user.setUserId(userId);
+        user.setContext(session);
 
-        String response2 = messageHandler.handle("да", userId);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userContextRepository.findById(userId)).thenReturn(Optional.of(session));
+        when(questionRepository.save(any(QuestionEntity.class))).thenAnswer(i -> i.getArgument(0));
+        when(testRepository.findById(1L)).thenReturn(Optional.of(test));
+
+        BotResponse response1 = messageHandler.handle("/del_question 1", userId);
         assertEquals("Вопрос “Сколько будет 2 + 2?” " +
-                "из теста “Математический тест” удален.", response2);
+                        "будет удалён, вы уверены?",
+                response1.getMessage());
+        assertNotNull(response1.getButtons());
+        assertEquals(2, response1.getButtons().getFirst().size());
+
+        InlineButtonDTO yesButton = response1.getButtons().getFirst().getFirst();
+        assertEquals("Да", yesButton.text());
+        assertEquals("DEL_QUESTION_CONFIRM 1 YES", yesButton.callbackData());
+
+        BotResponse response2 = messageHandler.handle("DEL_QUESTION_CONFIRM 1 YES", userId);
+        assertEquals("Вопрос “Сколько будет 2 + 2?” " +
+                        "из теста “Математический тест” удален.",
+                response2.getMessage());
 
         verify(questionRepository, times(1))
                 .delete(argThat(savedQuestion ->
@@ -559,13 +588,24 @@ public class QuestionProcessorTest {
      */
     @Test
     void testCancelDeleteQuestionWithQuestionId() {
-        String response1 = messageHandler.handle("/del_question 1", userId);
+        BotResponse response1 = messageHandler.handle("/del_question 1", userId);
         assertEquals("Вопрос “Сколько будет 2 + 2?” " +
-                "будет удалён, вы уверены? (Да/Нет)", response1);
+                "будет удалён, вы уверены?", response1.getMessage());
 
-        String response2 = messageHandler.handle("нет", userId);
         assertEquals("Вопрос “Сколько будет 2 + 2?” " +
-                "из теста “Математический тест” не удален.", response2);
+                        "будет удалён, вы уверены?",
+                response1.getMessage());
+        assertNotNull(response1.getButtons());
+        assertEquals(2, response1.getButtons().getFirst().size());
+
+        InlineButtonDTO noButton = response1.getButtons().getFirst().get(1);
+        assertEquals("Нет", noButton.text());
+        assertEquals("DEL_QUESTION_CONFIRM 1 NO", noButton.callbackData());
+
+        BotResponse response2 = messageHandler.handle("DEL_QUESTION_CONFIRM 1 NO", userId);
+        assertEquals("Вопрос “Сколько будет 2 + 2?” " +
+                        "из теста “Математический тест” не удален.",
+                response2.getMessage());
 
         verify(questionRepository, never()).delete(any(QuestionEntity.class));
     }
@@ -575,21 +615,28 @@ public class QuestionProcessorTest {
      */
     @Test
     void testConfirmDeleteQuestionWithoutQuestionId() {
-        String response1 = messageHandler.handle("/del_question", userId);
-        assertEquals("Введите id вопроса для удаления:\n", response1);
+        BotResponse response1 = messageHandler.handle("/del_question", userId);
+        assertEquals("Введите id вопроса для удаления:\n", response1.getMessage());
 
-        String response2 = messageHandler.handle("1", userId);
-        assertEquals("Вопрос “Сколько будет 2 + 2?” " +
-                "будет удалён, вы уверены? (Да/Нет)", response2);
+        BotResponse response2 = messageHandler.handle("1", userId);
+        assertEquals("Вопрос “Сколько будет 2 + 2?” будет удалён, вы уверены?",
+                response2.getMessage());
+        assertNotNull(response2.getButtons());
+        assertEquals(2, response2.getButtons().getFirst().size());
 
-        String response3 = messageHandler.handle("да", userId);
+        InlineButtonDTO yesButton = response2.getButtons().getFirst().getFirst();
+        assertEquals("Да", yesButton.text());
+        assertEquals("DEL_QUESTION_CONFIRM 1 YES", yesButton.callbackData());
+
+        BotResponse response3 = messageHandler.handle("DEL_QUESTION_CONFIRM 1 YES", userId);
         assertEquals("Вопрос “Сколько будет 2 + 2?” " +
-                "из теста “Математический тест” удален.", response3);
+                        "из теста “Математический тест” удален.",
+                response3.getMessage());
 
         verify(questionRepository, times(1))
-                .delete(argThat(deletedQuestion ->
-                        deletedQuestion.getId().equals(1L) &&
-                                deletedQuestion.getQuestion().equals("Сколько будет 2 + 2?")
+                .delete(argThat(savedQuestion ->
+                        savedQuestion.getId().equals(1L) &&
+                                savedQuestion.getQuestion().equals("Сколько будет 2 + 2?")
                 ));
     }
 
@@ -598,16 +645,27 @@ public class QuestionProcessorTest {
      */
     @Test
     void testCancelDeleteQuestionWithoutQuestionId() {
-        String response1 = messageHandler.handle("/del_question", userId);
-        assertEquals("Введите id вопроса для удаления:\n", response1);
+        BotResponse response1 = messageHandler.handle("/del_question", userId);
+        assertEquals("Введите id вопроса для удаления:\n",
+                response1.getMessage());
 
-        String response2 = messageHandler.handle("1", userId);
+        BotResponse response2 = messageHandler.handle("1", userId);
         assertEquals("Вопрос “Сколько будет 2 + 2?” " +
-                "будет удалён, вы уверены? (Да/Нет)", response2);
+                "будет удалён, вы уверены?", response2.getMessage());
 
-        String response3 = messageHandler.handle("нет", userId);
+        assertEquals("Вопрос “Сколько будет 2 + 2?” будет удалён, вы уверены?",
+                response2.getMessage());
+        assertNotNull(response2.getButtons());
+        assertEquals(2, response2.getButtons().getFirst().size());
+
+        InlineButtonDTO noButton = response2.getButtons().getFirst().get(1);
+        assertEquals("Нет", noButton.text());
+        assertEquals("DEL_QUESTION_CONFIRM 1 NO", noButton.callbackData());
+
+        BotResponse response3 = messageHandler.handle("DEL_QUESTION_CONFIRM 1 NO", userId);
         assertEquals("Вопрос “Сколько будет 2 + 2?” " +
-                "из теста “Математический тест” не удален.", response3);
+                        "из теста “Математический тест” не удален.",
+                response3.getMessage());
 
         verify(questionRepository, never()).delete(any(QuestionEntity.class));
     }
@@ -617,8 +675,8 @@ public class QuestionProcessorTest {
      */
     @Test
     void testDeleteQuestionNotFound() {
-        String response = messageHandler.handle("/del_question 1234", userId);
-        assertEquals("Вопрос не найден!", response);
+        BotResponse response = messageHandler.handle("/del_question 1234", userId);
+        assertEquals("Вопрос не найден!", response.getMessage());
     }
 
     /**
@@ -626,7 +684,7 @@ public class QuestionProcessorTest {
      */
     @Test
     void testDeleteQuestionWithInvalidId() {
-        String response = messageHandler.handle("/del_question f", userId);
-        assertEquals("Некорректный формат id вопроса. Пожалуйста, введите число.", response);
+        BotResponse response = messageHandler.handle("/del_question f", userId);
+        assertEquals("Некорректный формат идентификатора вопроса. Пожалуйста, введите число.", response.getMessage());
     }
 }

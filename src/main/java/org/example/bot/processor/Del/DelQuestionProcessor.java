@@ -1,13 +1,17 @@
 package org.example.bot.processor.Del;
 
+import org.example.bot.dto.InlineButtonDTO;
 import org.example.bot.entity.QuestionEntity;
 import org.example.bot.processor.AbstractStateProcessor;
 import org.example.bot.service.QuestionService;
 import org.example.bot.service.ContextService;
 import org.example.bot.service.StateService;
 import org.example.bot.state.UserState;
+import org.example.bot.telegram.BotResponse;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -48,18 +52,23 @@ public class DelQuestionProcessor extends AbstractStateProcessor {
     }
 
     @Override
-    public String process(Long userId, String message) {
+    public BotResponse process(Long userId, String message) {
         try {
             Long questionId = Long.parseLong(message);
+            List<List<InlineButtonDTO>> buttons = new ArrayList<>();
+            buttons.add(List.of(new InlineButtonDTO("Да", "DEL_QUESTION_CONFIRM " + questionId + " YES"),
+                    new InlineButtonDTO("Нет", "DEL_QUESTION_CONFIRM " + questionId + " NO")));
             Optional<QuestionEntity> questionOpt = questionService.getQuestion(questionId);
-            return questionOpt.map(question -> {
+            String messageText = questionOpt.map(question -> {
                 contextService.setCurrentQuestion(userId, question);
                 stateService.changeStateById(userId, UserState.CONFIRM_DELETE_QUESTION);
-                return String.format("Вопрос “%s” будет удалён, вы уверены? (Да/Нет)", question.getQuestion());
+                return String.format("Вопрос “%s” будет удалён, вы уверены?", question.getQuestion());
             }).orElse("Вопрос не найден!");
 
+            return new BotResponse(messageText, buttons, false);
+
         } catch (NumberFormatException e) {
-            return "Некорректный формат идентификатора вопроса. Пожалуйста, введите число.";
+            return new BotResponse("Некорректный формат идентификатора вопроса. Пожалуйста, введите число.");
         }
     }
 }

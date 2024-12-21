@@ -1,6 +1,7 @@
 package org.example.bot.handler;
 
 import org.example.bot.processor.MessageProcessor;
+import org.example.bot.telegram.BotResponse;
 import org.springframework.stereotype.Component;
 import java.util.List;
 
@@ -29,11 +30,11 @@ public class MessageHandler {
      * @param userId идентификатор пользователя
      * @return ответное сообщение для пользователя
      */
-    public String handle(String message, Long userId) {
+    public BotResponse handle(String message, Long userId) {
         return processors.stream()
                 .filter(processor -> processor.canProcess(userId, message))
                 .findFirst()
                 .map(processor -> processor.process(userId, message))
-                .orElse("Я вас не понимаю, для справки используйте /help");
+                .orElse(new BotResponse("Я вас не понимаю, для справки используйте /help"));
     }
 }

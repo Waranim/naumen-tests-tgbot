@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
-import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -57,12 +57,20 @@ class TelegramBot extends TelegramLongPollingBot {
         if (update.hasMessage() && update.getMessage().hasText()) {
             String message = update.getMessage().getText();
             User user = update.getMessage().getFrom();
+            Integer messageId = update.getMessage().getMessageId();
             Long userId = user.getId();
             String username = user.getUserName();
             String chatId = update.getMessage().getChatId().toString();
             if (message.equals("/start"))
                 message += " " + username;
-            sendMessage(new SendMessage(chatId, messageHandler.handle(message, userId)));
+            sendMessage(messageHandler.handle(message, userId).convertToMessage(chatId, messageId));
+
+        } else if (update.hasCallbackQuery()) {
+            Long userId = update.getCallbackQuery().getFrom().getId();
+            String chatId = update.getCallbackQuery().getMessage().getChatId().toString();
+            String message = update.getCallbackQuery().getData();
+            Integer messageId = update.getCallbackQuery().getMessage().getMessageId();
+            sendMessage(messageHandler.handle(message, userId).convertToMessage(chatId, messageId));
         }
     }
 
@@ -78,11 +86,13 @@ class TelegramBot extends TelegramLongPollingBot {
     /**
      * Отправка сообщений
      */
-    private void sendMessage(SendMessage message) {
-        try {
-            execute(message);
-        } catch (TelegramApiException e) {
-            log.error("Не удалось отправить сообщение: {}", e.getMessage());
+    private void sendMessage(BotApiMethod<?> message) {
+        if (message != null) {
+            try {
+                execute(message);
+            } catch (TelegramApiException e) {
+                log.error("Не удалось отправить сообщение: {}", e.getMessage());
+            }
         }
     }
 

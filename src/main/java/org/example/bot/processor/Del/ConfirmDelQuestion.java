@@ -1,11 +1,12 @@
 package org.example.bot.processor.Del;
 
 import org.example.bot.entity.QuestionEntity;
-import org.example.bot.processor.AbstractStateProcessor;
+import org.example.bot.processor.AbstractCallbackProcessor;
 import org.example.bot.service.QuestionService;
 import org.example.bot.service.ContextService;
 import org.example.bot.service.StateService;
 import org.example.bot.state.UserState;
+import org.example.bot.telegram.BotResponse;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
@@ -14,7 +15,7 @@ import java.util.Optional;
  * Обработчик состояния подтверждения удаления вопроса
  */
 @Component
-public class ConfirmDelQuestion extends AbstractStateProcessor {
+public class ConfirmDelQuestion extends AbstractCallbackProcessor {
 
     /**
      * Сервис для управления состояниями
@@ -41,26 +42,32 @@ public class ConfirmDelQuestion extends AbstractStateProcessor {
     public ConfirmDelQuestion(StateService stateService,
                               ContextService contextService,
                               QuestionService questionService) {
-        super(stateService, UserState.CONFIRM_DELETE_QUESTION);
+        super("DEL_QUESTION_CONFIRM");
         this.stateService = stateService;
         this.contextService = contextService;
         this.questionService = questionService;
     }
 
     @Override
-    public String process(Long userId, String message) {
-        message = message.toLowerCase();
+    public BotResponse process(Long userId, String message) {
+        String[] parts = message.split(" ");
         Optional<QuestionEntity> optionalCurrentQuestion = contextService.getCurrentQuestion(userId);
         if (optionalCurrentQuestion.isEmpty()) {
-            return "Вопрос не найден";
+            return new BotResponse("Вопрос не найден");
         }
+
         QuestionEntity currentQuestion = optionalCurrentQuestion.get();
-        stateService.changeStateById(userId, UserState.DEFAULT);
-        if (message.equals("да")) {
+        if (currentQuestion.getId() == Long.parseLong(parts[1])) {
+            stateService.changeStateById(userId, UserState.DEFAULT);
+            if (!parts[2].equals("YES")) {
+                return new BotResponse(String.format("Вопрос “%s” из теста “%s” не удален.",
+                        currentQuestion.getQuestion(), currentQuestion.getTest().getTitle()));
+            }
             contextService.setCurrentQuestion(userId, null);
             questionService.delete(currentQuestion);
-            return String.format("Вопрос “%s” из теста “%s” удален.", currentQuestion.getQuestion(), currentQuestion.getTest().getTitle());
+            return new BotResponse(String.format("Вопрос “%s” из теста “%s” удален.",
+                    currentQuestion.getQuestion(), currentQuestion.getTest().getTitle()));
         }
-        return String.format("Вопрос “%s” из теста “%s” не удален.", currentQuestion.getQuestion(), currentQuestion.getTest().getTitle());
+        return new BotResponse("");
     }
 }

@@ -66,4 +66,7 @@ public enum UserState {
 
     /** Просмотр теста */
     VIEW_TEST,
+
+    /** Прохождение теста */
+    PASSAGE_TEST,
 }

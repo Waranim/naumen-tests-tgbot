@@ -2,6 +2,7 @@ package org.example.bot.service;
 
 import org.example.bot.handler.MessageHandler;
 import org.example.bot.processor.MessageProcessor;
+import org.example.bot.telegram.BotResponse;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -61,10 +62,10 @@ class MessageHandlerTest {
     @Test
     void shouldReturnProcessorResponseWhenCanProcess() {
         when(processor1.canProcess(userId, message)).thenReturn(true);
-        when(processor1.process(userId, message)).thenReturn("processed message");
+        when(processor1.process(userId, message)).thenReturn(new BotResponse("processed message"));
 
 
-        String actualResponse = messageHandler.handle(message, userId);
+        String actualResponse = messageHandler.handle(message, userId).getMessage();
 
         Assertions.assertEquals("processed message", actualResponse);
         verify(processor1).canProcess(userId, message);
@@ -82,7 +83,7 @@ class MessageHandlerTest {
         when(processor1.canProcess(userId, message)).thenReturn(false);
         when(processor2.canProcess(userId, message)).thenReturn(false);
 
-        String actualResponse = messageHandler.handle(message, userId);
+        String actualResponse = messageHandler.handle(message, userId).getMessage();
 
         Assertions.assertEquals("Я вас не понимаю, для справки используйте /help", actualResponse);
 
@@ -99,7 +100,7 @@ class MessageHandlerTest {
     @Test
     void shouldHandleEmptyProcessorsList() {
         messageHandler = new MessageHandler(Collections.emptyList());
-        String actualResponse = messageHandler.handle(message, userId);
+        String actualResponse = messageHandler.handle(message, userId).getMessage();
         Assertions.assertEquals("Я вас не понимаю, для справки используйте /help", actualResponse);
     }
 }

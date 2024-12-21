@@ -1,14 +1,17 @@
 package org.example.bot.processor.Edit;
 
+import org.example.bot.dto.InlineButtonDTO;
 import org.example.bot.entity.TestEntity;
 import org.example.bot.processor.AbstractCommandProcessor;
 import org.example.bot.service.ContextService;
 import org.example.bot.service.StateService;
 import org.example.bot.service.TestService;
 import org.example.bot.state.UserState;
+import org.example.bot.telegram.BotResponse;
 import org.example.bot.util.NumberUtils;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -57,25 +60,31 @@ public class EditCommandProcessor extends AbstractCommandProcessor {
     }
 
     @Override
-    public String process(Long userId, String message) {
+    public BotResponse process(Long userId, String message) {
         String[] parts = message.split(" ");
         Optional<List<TestEntity>> testsOptional = testService.getTestsByUserId(userId);
         if (parts.length == 1)
-            return "Используйте команду вместе с идентификатором теста!";
+            return new BotResponse("Используйте команду вместе с идентификатором теста!");
         else if (!numberUtils.isNumber(parts[1]))
-            return "Ошибка ввода!";
+            return new BotResponse("Ошибка ввода!");
+
         Long testId = Long.parseLong(parts[1]);
+        List<List<InlineButtonDTO>> buttons = new ArrayList<>();
+        buttons.add(List.of(new InlineButtonDTO("Название теста",
+                "EDIT_TEST " + testId + " EDIT_TEST_TITLE")));
+
+        buttons.add(List.of(new InlineButtonDTO("Описание теста",
+                "EDIT_TEST " + testId + " EDIT_TEST_DESCRIPTION")));
         Optional<TestEntity> testOptional = testService.getTest(testId);
         if (testOptional.isEmpty() || testsOptional.isEmpty() || !testsOptional.get().contains(testOptional.get()))
-            return "Тест не найден!";
+            return new BotResponse("Тест не найден!");
 
         TestEntity test = testOptional.get();
         contextService.setCurrentTest(userId, test);
         stateService.changeStateById(userId, UserState.EDIT_TEST);
-        return String.format("""
-                Вы выбрали тест “%s”. Что вы хотите изменить?
-                1: Название теста
-                2: Описание теста
-                """, test.getTitle());
+        return new BotResponse(
+                String.format("Вы выбрали тест “%s”. Что вы хотите изменить?", test.getTitle()),
+                buttons,
+                false);
     }
 }
